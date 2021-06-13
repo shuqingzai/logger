@@ -1,12 +1,36 @@
 package logger
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
 
+func TestInitLogger(t *testing.T) {
+	config := make(map[string]string, 8)
+	config["log_path"] = "logs"
+	config["log_name"] = "test1"
+	logger, err := InitLogger("file", config)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer logger.Close()
+	logger.Debug("testDebug %d", time.Now().Unix())
+	logger.Trace("testTrace %d", time.Now().Unix())
+	logger.Info("testInfo %d", time.Now().Unix())
+	logger.Warn("testWarn %d", time.Now().Unix())
+	logger.Error("testError %d", time.Now().Unix())
+	logger.Fatal("testFatal %d", time.Now().Unix())
+}
+
 func TestFileLogger(t *testing.T) {
-	logger := NewFileLogger("logs", "test123")
+	config := make(map[string]string, 8)
+	logger, err := NewFileLogger(config)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	defer logger.Close()
 	logger.Debug("testDebug %d", time.Now().Unix())
 	logger.Trace("testTrace %d", time.Now().Unix())
@@ -17,7 +41,13 @@ func TestFileLogger(t *testing.T) {
 }
 
 func TestConsoleLogger(t *testing.T) {
-	logger := NewConsoleLogger()
+
+	config := map[string]string{}
+	logger, err := NewConsoleLogger(config)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	defer logger.Close()
 	logger.Debug("testDebug %d", time.Now().Unix())
 	logger.Trace("testTrace %d", time.Now().Unix())

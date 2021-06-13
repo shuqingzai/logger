@@ -47,16 +47,30 @@ func (f *FileLogger) Fatal(format string, args ...interface{}) {
 	f.writeLog(LogLevelFatal, format, args...)
 }
 
-func NewFileLogger(logPath, logName string) LogInterface {
-	checkDir(logPath)
-	f := &FileLogger{
+func NewFileLogger(config map[string]string) (f LogInterface, err error) {
+	logPath, ok := config["log_path"]
+	if !ok {
+		logPath = "logs"
+	}
+
+	err = checkDir(logPath)
+	if err != nil {
+		return
+	}
+
+	logName, ok := config["log_name"]
+	if !ok {
+		logName = "logger"
+	}
+
+	f = &FileLogger{
 		level:   LogLevelDebug,
 		logPath: logPath,
 		logName: checkFileName(logName, ".log"),
 		fileMap: make(map[string]*os.File, 20),
 	}
 
-	return f
+	return
 }
 
 func (f *FileLogger) openFile(filePath string) *os.File {

@@ -1,6 +1,8 @@
 package logger
 
-import "os"
+import (
+	"os"
+)
 
 type ConsoleLogger struct {
 }
@@ -33,8 +35,9 @@ func (c *ConsoleLogger) Close() {
 
 }
 
-func NewConsoleLogger() LogInterface {
-	return &ConsoleLogger{}
+func NewConsoleLogger(config map[string]string) (c LogInterface, err error) {
+	c = &ConsoleLogger{}
+	return
 }
 
 func (c *ConsoleLogger) writeLog(level int, format string, args ...interface{}) {

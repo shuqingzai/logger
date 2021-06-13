@@ -42,22 +42,19 @@ func writeFile(fileHandle *os.File, skip int, levelStr string, format string, ar
 	}
 }
 
-func checkDir(path string) {
+func checkDir(path string) error {
 	dirPath, err := os.Stat(path)
 	if err == nil {
 		if dirPath.IsDir() {
-			return
+			return nil
 		}
-		panic(fmt.Sprintf("%s is Exist, but it is not a dir", path))
+		return fmt.Errorf("%s is Exist, but it is not a dir", path)
 	}
 	if os.IsNotExist(err) {
-		err = os.Mkdir(path, 0755)
-		if err == nil {
-			return
-		}
-		panic(fmt.Sprintf("mkdir error: %s", err))
+		return os.Mkdir(path, 0755)
 	}
-	panic(fmt.Sprintf("checkDir error: %s", err))
+
+	return fmt.Errorf("checkDir error: %s", err)
 }
 
 func checkFileName(fileName string, fileSuffix string) string {
