@@ -6,7 +6,7 @@ import (
 )
 
 func TestFileLogger(t *testing.T) {
-	logger := NewFileLogger("logs", "test.log")
+	logger := NewFileLogger("logs", "test123")
 	defer logger.Close()
 	logger.Debug("testDebug %d", time.Now().Unix())
 	logger.Trace("testTrace %d", time.Now().Unix())

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -39,4 +40,30 @@ func writeFile(fileHandle *os.File, skip int, levelStr string, format string, ar
 	if err != nil {
 		panic(fmt.Sprintf("Write Log error: %s", err))
 	}
+}
+
+func checkDir(path string) {
+	dirPath, err := os.Stat(path)
+	if err == nil {
+		if dirPath.IsDir() {
+			return
+		}
+		panic(fmt.Sprintf("%s is Exist, but it is not a dir", path))
+	}
+	if os.IsNotExist(err) {
+		err = os.Mkdir(path, 0755)
+		if err == nil {
+			return
+		}
+		panic(fmt.Sprintf("mkdir error: %s", err))
+	}
+	panic(fmt.Sprintf("checkDir error: %s", err))
+}
+
+func checkFileName(fileName string, fileSuffix string) string {
+	if strings.HasSuffix(fileName, fileSuffix) {
+		return fileName
+	}
+
+	return fmt.Sprintf("%s%s", fileName, fileSuffix)
 }
