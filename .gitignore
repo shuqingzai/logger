@@ -2,6 +2,9 @@
 *.log
 node_modules
 package-lock.json
+.cz-config.js
+commitlint.config.js
+package.json
 
 ### Example user template
 
