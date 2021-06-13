@@ -4,7 +4,7 @@ node_modules
 package-lock.json
 .cz-config.js
 commitlint.config.js
-package.json
+#package.json
 
 ### Example user template
 
