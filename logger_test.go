@@ -12,7 +12,7 @@ func TestInitLogger(t *testing.T) {
 	//config["log_name"] = "test1"
 	//config["log_split_type"] = "size"
 	//config["log_split_size"] = "5"
-	logger, err := InitLogger("console", config)
+	logger, err := InitLogger("file", config)
 	if err != nil {
 		fmt.Println(err)
 		return

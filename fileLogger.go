@@ -180,7 +180,7 @@ func (f *FileLogger) saveLogFile() {
 		fileHandle := f.getFileHandle(logData.LogFilePath)
 		_, _ = fmt.Fprintf(fileHandle, "%s %s [%s::%d %s()]\n%s\n",
 			logData.LogTime,
-			getLogLevelText(logData.Level),
+			logData.LevelStr,
 			logData.FileName,
 			logData.LineNo,
 			logData.FuncName,
