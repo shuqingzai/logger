@@ -31,15 +31,21 @@ func getLineInfo(skip int) (fileName string, funcName string, lineNo int) {
 // @param format
 // @param args
 // @Author ShuQingZai<overbeck.jack@qq.com>
-func writeFile(fileHandle *os.File, skip int, levelStr string, format string, args ...interface{}) {
+func writeFile(skip int, level int, format string, args ...interface{}) (logData *LogData) {
 	// 文件写入
 	nowTime := time.Now().Format("2006-01-02 15:04:05.999")
 	fileName, funcName, lineNo := getLineInfo(skip)
 	msg := fmt.Sprintf(format, args...)
-	_, err := fmt.Fprintf(fileHandle, "%s %s [%s::%d %s()]\n%s\n", nowTime, levelStr, fileName, lineNo, funcName, msg)
-	if err != nil {
-		panic(fmt.Sprintf("Write Log error: %s", err))
+	logData = &LogData{
+		LogTime:  nowTime,
+		Level:    level,
+		Message:  msg,
+		FileName: fileName,
+		LineNo:   lineNo,
+		FuncName: funcName,
 	}
+
+	return
 }
 
 func checkDir(path string) error {

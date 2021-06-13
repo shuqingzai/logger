@@ -5,7 +5,8 @@ package-lock.json
 .cz-config.js
 commitlint.config.js
 #package.json
-
+logs/*
+!.gitkeep
 ### Example user template
 
 # IntelliJ project files

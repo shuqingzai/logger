@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"os"
 )
 
@@ -41,6 +42,15 @@ func NewConsoleLogger(config map[string]string) (c LogInterface, err error) {
 }
 
 func (c *ConsoleLogger) writeLog(level int, format string, args ...interface{}) {
-	// 文件写入
-	writeFile(os.Stdout, 4, getLogLevelText(level), format, args...)
+	logData := writeFile(4, level, format, args...)
+	_, err := fmt.Fprintf(os.Stdout, "%s %s [%s::%d %s()]\n%s\n",
+		logData.LogTime,
+		getLogLevelText(logData.Level),
+		logData.FileName,
+		logData.LineNo,
+		logData.FuncName,
+		logData.Message)
+	if err != nil {
+		panic(fmt.Sprintf("Write Log error: %s", err))
+	}
 }

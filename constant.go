@@ -11,6 +11,11 @@ const (
 	LogLevelFatal
 )
 
+const (
+	LogSplitTypeHour = iota
+	LogSplitTypeSize
+)
+
 // getLogLevelText
 // 获取日志级别描述 
 // @param level

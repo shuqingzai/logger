@@ -4,14 +4,19 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 	"time"
 )
 
 type FileLogger struct {
-	level   int
-	logPath string
-	logName string
-	fileMap map[string]*os.File
+	level         int
+	logFilePath   string
+	logFilename   string
+	splitType     int
+	splitSize     int64
+	lastSplitHour int
+	fileMap       map[string]*os.File
+	logDataChan   chan *LogData
 }
 
 func (f *FileLogger) Close() {
@@ -47,30 +52,140 @@ func (f *FileLogger) Fatal(format string, args ...interface{}) {
 	f.writeLog(LogLevelFatal, format, args...)
 }
 
-func NewFileLogger(config map[string]string) (f LogInterface, err error) {
+func NewFileLogger(config map[string]string) (LogInterface, error) {
 	logPath, ok := config["log_path"]
 	if !ok {
 		logPath = "logs"
 	}
 
-	err = checkDir(logPath)
+	err := checkDir(logPath)
+	if err != nil {
+		return nil, err
+	}
+
+	logFilename, ok := config["log_name"]
+	if !ok {
+		logFilename = "logger"
+	}
+
+	logChanSizeStr, ok := config["log_chan_size"]
+	if !ok {
+		logChanSizeStr = "50000"
+	}
+	logChanSize, err := strconv.Atoi(logChanSizeStr)
+	if err != nil || logChanSize < 1 || logChanSize > 100000 {
+		logChanSize = 50000
+	}
+
+	f := &FileLogger{
+		level:         LogLevelDebug,
+		logFilePath:   logPath,
+		logFilename:   checkFileName(logFilename, ".log"),
+		fileMap:       make(map[string]*os.File, 20),
+		logDataChan:   make(chan *LogData, logChanSize),
+		lastSplitHour: time.Now().Hour(),
+	}
+	// 日志切割方式
+	logSplitTypeStr, ok := config["log_split_type"]
+	if !ok {
+		logSplitTypeStr = "size"
+	}
+	if logSplitTypeStr == "size" {
+		f.splitType = LogSplitTypeSize
+		logSplitSizeStr, ok := config["log_split_size"]
+		if !ok {
+			logSplitSizeStr = "20"
+		}
+		logSplitSize, err := strconv.ParseInt(logSplitSizeStr, 10, 64)
+		if err != nil {
+			logSplitSize = 20
+		}
+		f.splitSize = logSplitSize * 1024 * 1024 // 单位是Mb
+	} else {
+		f.splitType = LogSplitTypeHour
+	}
+
+	// 启动协程写入日志文件
+	go f.saveLogFile()
+
+	return f, err
+}
+
+func (f *FileLogger) backupFile(logFilePath string, fileHandle *os.File, fileMapKey string, now *time.Time) (err error) {
+	err = fileHandle.Close()
 	if err != nil {
 		return
 	}
+	delete(f.fileMap, fileMapKey) // 删除Map元素
 
-	logName, ok := config["log_name"]
-	if !ok {
-		logName = "logger"
-	}
-
-	f = &FileLogger{
-		level:   LogLevelDebug,
-		logPath: logPath,
-		logName: checkFileName(logName, ".log"),
-		fileMap: make(map[string]*os.File, 20),
-	}
+	backupFilename := fmt.Sprintf("%s_%04d_%02d_%02d_%02d_%02d_%02d",
+		logFilePath,
+		now.Year(),
+		now.Month(),
+		now.Day(),
+		f.lastSplitHour,
+		now.Minute(),
+		now.Second(),
+	)
+	f.lastSplitHour = now.Hour()
+	err = os.Rename(logFilePath, backupFilename)
 
 	return
+}
+
+func (f FileLogger) splitFileOfHour(logFilePath string) {
+	now := time.Now()
+	if now.Hour() == f.lastSplitHour {
+		return
+	}
+	fileHandle, ok, fileMapKey := f.checkFileHandle(logFilePath)
+	if !ok {
+		return
+	}
+	_ = f.backupFile(logFilePath, fileHandle, fileMapKey, &now)
+}
+
+func (f *FileLogger) splitFileOfSize(logFilePath string) {
+	fileHandle, ok, fileMapKey := f.checkFileHandle(logFilePath)
+	if !ok {
+		return
+	}
+	statInfo, err := fileHandle.Stat()
+	if err != nil {
+		return
+	}
+	if statInfo.Size() < f.splitSize {
+		return
+	}
+	now := time.Now()
+	_ = f.backupFile(logFilePath, fileHandle, fileMapKey, &now)
+}
+
+func (f *FileLogger) checkSplitFile(logFilePath string) {
+	if f.splitType == LogSplitTypeHour {
+		// 按小时切割文件
+		f.splitFileOfHour(logFilePath)
+		return
+
+	}
+
+	// 按文件大小切割文件
+	f.splitFileOfSize(logFilePath)
+}
+
+func (f *FileLogger) saveLogFile() {
+	for logData := range f.logDataChan {
+		// 检查文件是否需要切割
+		f.checkSplitFile(logData.LogFilePath)
+		fileHandle := f.getFileHandle(logData.LogFilePath)
+		_, _ = fmt.Fprintf(fileHandle, "%s %s [%s::%d %s()]\n%s\n",
+			logData.LogTime,
+			getLogLevelText(logData.Level),
+			logData.FileName,
+			logData.LineNo,
+			logData.FuncName,
+			logData.Message)
+	}
 }
 
 func (f *FileLogger) openFile(filePath string) *os.File {
@@ -83,8 +198,7 @@ func (f *FileLogger) openFile(filePath string) *os.File {
 }
 
 func (f *FileLogger) getFileHandle(filePath string) *os.File {
-	fileMapKey := path.Base(filePath)
-	fileHandle, ok := f.fileMap[fileMapKey]
+	fileHandle, ok, fileMapKey := f.checkFileHandle(filePath)
 	if !ok {
 		// 打开文件并存储在fileMap
 		fileHandle = f.openFile(filePath)
@@ -94,10 +208,16 @@ func (f *FileLogger) getFileHandle(filePath string) *os.File {
 	return fileHandle
 }
 
+func (f *FileLogger) checkFileHandle(filePath string) (fileHandle *os.File, ok bool, fileMapKey string) {
+	fileMapKey = path.Base(filePath)
+	fileHandle, ok = f.fileMap[fileMapKey]
+	return
+}
+
 func (f *FileLogger) getFilePath(fileName string) (filePath string, levelStr string) {
 	dateTime := time.Now().Format("2006-01-02")
 	levelStr = getLogLevelText(f.level)
-	filePath = fmt.Sprintf("%s/%s_%s_%s", f.logPath, dateTime, levelStr, fileName)
+	filePath = fmt.Sprintf("%s/%s_%s_%s", f.logFilePath, dateTime, levelStr, fileName)
 	return
 }
 
@@ -110,9 +230,16 @@ func (f *FileLogger) setLogLevel(level int) {
 func (f *FileLogger) writeLog(level int, format string, args ...interface{}) {
 	f.setLogLevel(level)
 	// 解析获取文件路径与错误级别描述
-	filePath, levelStr := f.getFilePath(f.logName)
+	filePath, levelStr := f.getFilePath(f.logFilename)
 	// 获取文件句柄并存储在fileMap中
-	fileHandle := f.getFileHandle(filePath)
-	// 文件写入
-	writeFile(fileHandle, 4, levelStr, format, args...)
+	//fileHandle := f.getFileHandle(filePath)
+	// 组装信息放入chan队列
+	logData := writeFile(4, level, format, args...)
+	logData.LogFilePath = filePath
+	logData.LevelStr = levelStr
+	// 放入chan 如果chan已满，直接跳过
+	select {
+	case f.logDataChan <- logData:
+	default:
+	}
 }
