@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.6](https://github.com/shuqingzai/logger/compare/v0.0.5...v0.0.6) (2021-06-14)
+
+
+### Features
+
+* **file(文件驱动):** 1. 支持配置 file_map_size 设置文件句柄map的初始化数量,2. 支持配置 log_split_type 设置文件切割方式,3. 支持配置 log_split_size 设置文件切割大小, 3 支持 log_file_ext 设置日志文件后缀 .txt或.log ([7f194f9](https://github.com/shuqingzai/logger/commit/7f194f90c3157ddeb48e99813e4fe8d0697bc432))
+
 ### [0.0.5](https://github.com/shuqingzai/logger/compare/v0.0.4...v0.0.5) (2021-06-13)
 
 
