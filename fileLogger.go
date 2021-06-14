@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -12,9 +13,12 @@ type FileLogger struct {
 	level         int
 	logFilePath   string
 	logFilename   string
+	logFileExt    string
 	splitType     int
 	splitSize     int64
 	lastSplitHour int
+	fileMapSize   int
+	logChanSize   int
 	fileMap       map[string]*os.File
 	logDataChan   chan *LogData
 }
@@ -76,12 +80,28 @@ func NewFileLogger(config map[string]string) (LogInterface, error) {
 	if err != nil || logChanSize < 1 || logChanSize > 100000 {
 		logChanSize = 50000
 	}
+	logFileExt := config["log_file_ext"]
+	if logFileExt != ".log" && logFileExt != ".txt" {
+		logFileExt = ".log"
+	}
+
+	fileMapSizeStr, ok := config["file_map_size"]
+	if !ok {
+		fileMapSizeStr = "30"
+	}
+	fileMapSize, err := strconv.Atoi(fileMapSizeStr)
+	if err != nil || fileMapSize < 30 || fileMapSize > 300 {
+		fileMapSize = 30
+	}
 
 	f := &FileLogger{
 		level:         LogLevelDebug,
 		logFilePath:   logPath,
-		logFilename:   checkFileName(logFilename, ".log"),
-		fileMap:       make(map[string]*os.File, 20),
+		logFilename:   checkFileName(logFilename, logFileExt),
+		logFileExt:    logFileExt,
+		fileMapSize:   fileMapSize,
+		fileMap:       make(map[string]*os.File, fileMapSize),
+		logChanSize:   logChanSize,
 		logDataChan:   make(chan *LogData, logChanSize),
 		lastSplitHour: time.Now().Hour(),
 	}
@@ -118,14 +138,15 @@ func (f *FileLogger) backupFile(logFilePath string, fileHandle *os.File, fileMap
 	}
 	delete(f.fileMap, fileMapKey) // 删除Map元素
 
-	backupFilename := fmt.Sprintf("%s_%04d_%02d_%02d_%02d_%02d_%02d",
-		logFilePath,
+	backupFilename := fmt.Sprintf("%s_%04d_%02d_%02d_%02d_%02d_%02d%s",
+		strings.Replace(logFilePath, f.logFileExt, "", -1),
 		now.Year(),
 		now.Month(),
 		now.Day(),
 		f.lastSplitHour,
 		now.Minute(),
 		now.Second(),
+		f.logFileExt,
 	)
 	f.lastSplitHour = now.Hour()
 	err = os.Rename(logFilePath, backupFilename)

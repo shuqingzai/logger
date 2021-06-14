@@ -10,8 +10,11 @@ func TestInitLogger(t *testing.T) {
 	config := make(map[string]string, 8)
 	//config["log_path"] = "logs"
 	//config["log_name"] = "test1"
-	//config["log_split_type"] = "size"
-	//config["log_split_size"] = "5"
+	//config["file_map_size"] = "30" // 30 -300
+	//config["log_chan_size"] = "50000" // 1 - 10000
+	//config["log_split_type"] = "size" // size || hour
+	//config["log_split_size"] = "1" // 单位: MB
+	//config["log_file_ext"] = ".log" // .txt || .log
 	logger, err := InitLogger("file", config)
 	if err != nil {
 		fmt.Println(err)
